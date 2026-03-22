@@ -66,10 +66,43 @@ Diff: extra newline between sections
 
 Update pass counts in `refactor/migration-map.md`.
 
+## Normalization
+
+The comparison function must normalize platform differences that aren't behavioral divergences. (L-011)
+
+**Required normalizations:**
+```python
+# Temp directory paths
+text = re.sub(r"/var/folders/[^\s]+", "<TMP>", text)
+text = re.sub(r"/tmp/[^\s]+", "<TMP>", text)
+
+# GUIDs
+text = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-...", "<GUID>", text)
+
+# Temp dir basenames used as default names
+text = re.sub(r"\*\*[a-z]+-[A-Za-z0-9_]+\*\*", "**<TMPNAME>**", text)
+
+# OS error messages (Node vs Python)
+text = re.sub(r"ENAMETOOLONG: name too long, open", "File name too long:", text)
+text = re.sub(r"\[Errno \d+\] File name too long:", "File name too long:", text)
+```
+
+**When to add new normalizations:**
+- A fixture fails
+- You inspect the diff and confirm the behavior is identical
+- The difference is purely platform formatting (error strings, path formats, line endings)
+- Document the normalization with a reference to the learning (L-xxx)
+
+**When NOT to normalize:**
+- The outputs are semantically different (different data, different structure)
+- The error type differs (ValueError vs TypeError)
+- The side effects differ (different files created, different content)
+
 ## Rules
 
 - **Run in clean temp directories.** Every verification must start from scratch.
 - **Exact comparison for text output.** No fuzzy matching. Case matters. Whitespace matters.
-- **Fuzzy comparison for timestamps and GUIDs.** These will differ between runs — compare structure, not values.
+- **Normalize platform differences.** Paths, GUIDs, OS errors, timestamps. (L-003, L-010, L-011)
 - **Show the diff for failures.** Don't just say "failed" — show exactly what's different.
 - **100% is the bar.** Any failure means the port is not done. (GUARD-002)
+- **Replay in capture order.** Stateful fixtures must execute in the same sequence as capture. (L-006)

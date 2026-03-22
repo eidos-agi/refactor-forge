@@ -167,3 +167,41 @@ permissions:
 The verification script must check side effects too — not just the return value.
 
 **Rule:** Every fixture captures: input, output, AND side effects. File-based tools must snapshot the affected directories before and after.
+
+---
+
+### L-010: OS error messages differ between runtimes — normalize them
+
+**Source:** research.md TypeScript → Python port (2026-03-22)
+
+**Problem:** When a file path is too long, Node returns `ENAMETOOLONG: name too long, open '/path...'` and Python returns `[Errno 63] File name too long: '/path...'`. The behavior is identical (both reject the path), but the error string differs.
+
+**Fix:** Add OS error normalization to the comparison function:
+```python
+text = re.sub(r"ENAMETOOLONG: name too long, open", "File name too long:", text)
+text = re.sub(r"\[Errno \d+\] File name too long:", "File name too long:", text)
+```
+
+**Rule:** Any error that comes from the OS (filesystem, network, permissions) will have different formatting across runtimes. Normalize the error category, not the exact string. This applies to: ENOENT, EACCES, ENAMETOOLONG, ENOSPC, etc.
+
+---
+
+### L-011: 100% pass rate requires aggressive normalization — and that's correct
+
+**Source:** Both ike.md and research.md ports (2026-03-22)
+
+**Problem:** "97.2%" and "98.6%" pass rates sound good but they hide noise from platform differences that aren't real behavioral divergences. The remaining "failures" were always: temp dir basenames, OS error formats, PDF generation status lines. Fixing these required normalizing the comparison — which felt like cheating until we verified that the underlying behavior was identical.
+
+**Insight:** Normalization is not cheating. It's the correct approach when the comparison framework can't distinguish between "different behavior" and "different platform." The key is to normalize **categories** (paths, GUIDs, OS errors, timestamps) rather than specific values.
+
+**Rule:** Your normalization function is part of your test infrastructure. It should be reviewed, versioned, and documented just like the fixtures. Every normalization rule should cite the specific platform difference it addresses. If you're normalizing something that IS a behavioral difference, you have a bug in your normalizer, not a passing test.
+
+---
+
+### L-012: Double your fixture count, then double it again
+
+**Source:** research.md port — went from 31 to 72 fixtures
+
+**Problem:** 31 fixtures for 20 tools (1.5 per tool) missed edge cases: empty titles, unicode, phase gate enforcement, claim resolution sequences, bad indices. Going to 72 fixtures (3.6 per tool) caught the OS error message difference and verified the full phase gate state machine.
+
+**Rule:** Minimum fixture count should be 3-4x the tool count. For each tool, capture at minimum: (1) happy path, (2) error path (bad input), (3) edge case (empty, very long, unicode), (4) state-dependent case (before/after prerequisite). For tools with multiple code paths, add one fixture per path.

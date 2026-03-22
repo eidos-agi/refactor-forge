@@ -102,10 +102,39 @@ Create `refactor/migration-map.md`:
 **Total: 0/N tools ported, 0/M fixtures passing**
 ```
 
+### Step 6: Verify Fixture Count
+
+**Minimum: 3-4x the tool count.** (L-012)
+
+For each tool, you need at minimum:
+1. Happy path (normal valid input)
+2. Error path (bad input, missing required fields, nonexistent entity)
+3. Edge case (empty string, very long string, unicode)
+4. State-dependent case (tool behavior before/after prerequisites met)
+
+For tools with multiple code paths (filters, modes, conditional logic), add one fixture per path.
+
+| Tool Count | Minimum Fixtures | Target |
+|-----------|-----------------|--------|
+| 10 tools | 30-40 | 50+ |
+| 20 tools | 60-80 | 100+ |
+| 30 tools | 90-120 | 150+ |
+
+### Step 7: Stateful Fixture Ordering
+
+For stateful tools (where tool B depends on state created by tool A), capture fixtures in two passes:
+
+1. **Happy path lifecycle** — one continuous sequence creating the state each tool expects
+2. **Edge cases** — a second lifecycle specifically targeting error paths, boundaries, and gate enforcement
+
+Each pass gets its own project/directory. Document the execution order — the verification script must replay in the same order. (L-006)
+
 ## Rules
 
-- **Run real code.** Don't fabricate outputs — actually call the original implementation.
-- **Capture side effects.** File-based MCP servers create/modify files — those are part of the contract.
+- **Run real code.** Don't fabricate outputs — actually call the original implementation. Never invent fixtures in the target language. (L-012)
+- **Capture side effects.** File-based MCP servers create/modify files — those are part of the contract. (L-009)
 - **Use temp directories.** Don't pollute real project data. Create a temp dir for each fixture run.
 - **Include error cases.** How the original handles bad input is part of the contract.
 - **Record the source language.** Fixtures should be self-documenting about what they came from.
+- **Prefer explicit inputs over defaults.** Don't rely on temp dir basenames or runtime-generated values as test data. (L-004)
+- **Always capture from the source implementation, then verify against the target.** Never write tests that only run against the target — that proves the target works, not that it matches the source.
